@@ -12,23 +12,47 @@ import {
     IconButton,
     HStack,
     Link,
-    Spinner // Import Spinner for loading indicator
+    Spinner,
+    keyframes, // Import keyframes for animations
+    Avatar, // Import Avatar for profile image
+    Icon // Import Icon for general icons
 } from '@chakra-ui/react';
-import { FaMicrophone, FaStop, FaGithub, FaTwitter, FaLinkedin, FaBookOpen, FaDownload } from 'react-icons/fa';
+import { 
+    FaMicrophone, 
+    FaStop, 
+    FaGithub, 
+    FaTwitter, 
+    FaLinkedin, 
+    FaBookOpen, 
+    FaDownload,
+    FaHome, // Home icon for sidebar simulation
+    FaChartBar, // Dashboard icon for sidebar simulation
+    FaCog, // Settings icon for sidebar simulation
+    FaMicrophoneAlt, // Voice Notes icon for sidebar simulation
+    FaFileAlt, // My Notes icon for sidebar simulation
+    FaBell // Notification icon for header
+} from 'react-icons/fa';
 import CustomToast from './CustomToast'; // Assuming CustomToast.js is in the same directory
 
+// Define a pulsing animation for the microphone icon
+const pulse = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+`;
+
 function App() {
+    // State management for recording, transcription, loading, and notes
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState("Waiting for your voice...");
-    const [isLoading, setIsLoading] = useState(false); // New state for loading indicator
+    const [isLoading, setIsLoading] = useState(false);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const toast = useToast();
     const [audioBlobUrl, setAudioBlobUrl] = useState(null);
-    const [notes, setNotes] = useState([]); // State to store fetched notes (transcriptions)
+    const [notes, setNotes] = useState([]);
 
     // IMPORTANT: Replace this with your actual API Gateway Invoke URL + /notes
-    // This URL will be used for both POST (sending audio) and GET (fetching notes)
     const API_ENDPOINT_URL = 'https://jjkqlvqpe7.execute-api.us-east-1.amazonaws.com/default/notes'; 
 
     // Function to fetch notes (transcriptions) from the backend
@@ -47,9 +71,7 @@ function App() {
             }
             const data = await response.json();
             console.log('Fetched Notes Data:', data);
-
-            // Assuming your Lambda returns data in the format: {"notes": [...]}
-            setNotes(data.notes || []); // Update the state with the fetched notes
+            setNotes(data.notes || []);
         } catch (error) {
             console.error('Error fetching notes:', error);
             toast({
@@ -68,7 +90,6 @@ function App() {
     };
 
     // useEffect hook to fetch notes when the component mounts
-    // The empty dependency array [] means this runs once after the initial render
     useEffect(() => {
         fetchNotes();
     }, []);
@@ -78,7 +99,7 @@ function App() {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             setIsRecording(true);
             setTranscript("Recording... Speak now!");
-            setAudioBlobUrl(null); // Reset audio URL on new recording
+            setAudioBlobUrl(null);
             toast({
                 position: "top",
                 duration: 2000,
@@ -98,7 +119,7 @@ function App() {
                 audioChunksRef.current.push(event.data);
             };
 
-            mediaRecorderRef.current.onstop = async () => { // Made onstop async
+            mediaRecorderRef.current.onstop = async () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 console.log("Audio Blob created:", audioBlob);
                 audioChunksRef.current = [];
@@ -108,10 +129,8 @@ function App() {
 
                 setTranscript("Recording stopped. Sending for transcription...");
                 
-                // Call the new function to send audio to backend
                 await sendAudioForTranscription(audioBlob);
 
-                // Stop all tracks to release microphone
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -146,16 +165,14 @@ function App() {
         console.log("Stopping recording.");
     };
 
-    // New function to send audio to Lambda for transcription
     const sendAudioForTranscription = async (audioBlob) => {
-        setIsLoading(true); // Start loading
+        setIsLoading(true);
         setTranscript("Sending audio for transcription...");
 
-        // Convert audio Blob to Base64
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
-            const base64Audio = reader.result.split(',')[1]; // Get only the Base64 part
+            const base64Audio = reader.result.split(',')[1];
 
             try {
                 const response = await fetch(API_ENDPOINT_URL, {
@@ -165,8 +182,7 @@ function App() {
                     },
                     body: JSON.stringify({
                         audioData: base64Audio,
-                        userId: 'ehtesha_user_123', // Consistent user ID
-                        // You might add other metadata here if needed
+                        userId: 'ehtesha_user_123',
                     }),
                 });
 
@@ -177,7 +193,7 @@ function App() {
 
                 const data = await response.json();
                 console.log('Transcription request successful:', data);
-                setTranscript(data.message || "Transcription request sent!"); // Update transcript with backend message
+                setTranscript(data.message || "Transcription request sent!");
                 
                 toast({
                     position: "top",
@@ -192,7 +208,6 @@ function App() {
                     ),
                 });
 
-                // After successful transcription request, refresh the notes list
                 fetchNotes();
 
             } catch (error) {
@@ -211,7 +226,7 @@ function App() {
                     ),
                 });
             } finally {
-                setIsLoading(false); // Stop loading regardless of success or failure
+                setIsLoading(false);
             }
         };
         reader.onerror = (error) => {
@@ -221,137 +236,239 @@ function App() {
         };
     };
 
+    // Define navigation items for a simulated sidebar/dashboard links
+    const navItems = [
+        { icon: FaHome, label: 'Home', href: '#' },
+        { icon: FaMicrophoneAlt, label: 'Voice Notes', href: '#' },
+        { icon: FaFileAlt, label: 'My Notes', href: '#' },
+        { icon: FaChartBar, label: 'Dashboard', href: '#' },
+        { icon: FaCog, label: 'Settings', href: '#' },
+    ];
+
     return (
-        <Flex direction="column" minH="100vh" bg="#f8f9fa" color="gray.800">
+        <Flex direction="column" minH="100vh" bg="gray.50" color="gray.800">
             {/* Header - Dark Blue like Professional Solutions */}
-            <Box as="header" w="100%" p={4} bg="#2c3e50" boxShadow="sm">
+            <Box as="header" w="100%" p={4} bg="blue.800" boxShadow="md">
                 <Flex align="center" maxW="container.xl" mx="auto">
+                    {/* App Logo and Name */}
                     <HStack spacing={2}>
                         <FaBookOpen size="20px" color="white" />
                         <Heading as="h1" size="md" color="white" fontFamily="heading">
                             StudyMate
                         </Heading>
                     </HStack>
-                    <Spacer />
-                    <HStack spacing={6}>
-                        <Link href="#" color="white" _hover={{ color: '#3498db' }} fontWeight="medium">Home</Link>
-                        <Link href="#" color="white" _hover={{ color: '#3498db' }} fontWeight="medium">Dashboard</Link>
-                        <Link href="#" color="white" _hover={{ color: '#3498db' }} fontWeight="medium">Settings</Link>
+
+                    <Spacer /> {/* Pushes elements to the right */}
+
+                    {/* Right-side Icons/User Info */}
+                    <HStack spacing={4}>
+                        {/* Notification Icon */}
+                        <IconButton
+                            icon={<FaBell />}
+                            aria-label="Notifications"
+                            variant="ghost"
+                            color="whiteAlpha.800"
+                            _hover={{ color: 'blue.300', bg: 'whiteAlpha.100' }}
+                            transition="all 0.2s ease-in-out"
+                            size="md"
+                        />
+                        {/* User Profile/Avatar */}
+                        <Avatar
+                            size="sm"
+                            name="Ehtesha Amir" // Placeholder name
+                            src="https://placehold.co/150x150/3498db/ffffff?text=EA" // Placeholder image for profile
+                            cursor="pointer"
+                            _hover={{ opacity: 0.8 }}
+                            transition="all 0.2s ease-in-out"
+                        />
                     </HStack>
                 </Flex>
             </Box>
 
-            {/* Main Content */}
-            <VStack
-                flex="1"
-                p={8}
-                spacing={8}
-                justify="center"
-                align="center"
-            >
-                <Container maxW="container.sm" textAlign="center" p={12} bg="#555555" borderRadius="lg" boxShadow="lg">
-                    <Heading as="h1" size="xl" mb={6} color="white" fontFamily="cursive">
-                        StudyMate: Voice-Powered Notes
-                    </Heading>
-                    <Text fontSize="md" mb={12} color="white" fontWeight="normal" fontFamily="heading" opacity={0.9}>
-                        Record your thoughts, lectures, or study sessions. We'll transcribe them for you!
-                    </Text>
-
-                    <Button
-                        leftIcon={isRecording ? <FaStop /> : <FaMicrophone />}
-                        bg={isRecording ? "#e74c3c" : "#3498db"}
-                        color="white"
-                        size="lg"
-                        height="50px"
-                        width="180px"
-                        borderRadius="md"
-                        boxShadow="md"
-                        onClick={isRecording ? stopRecording : startRecording}
-                        isLoading={isLoading} // Use isLoading for the button
-                        loadingText="Processing..." // Text when loading
-                        _hover={{
-                            transform: 'scale(1.02)',
-                            boxShadow: 'lg',
-                            bg: isRecording ? "#c0392b" : "#2980b9"
-                        }}
-                        _active={{ transform: 'scale(0.98)' }}
-                        border="none"
-                        fontSize="md"
-                        fontWeight="medium"
-                        isDisabled={isLoading} // Disable button while loading
-                    >
-                        {isRecording ? 'Stop Recording' : 'Start Recording'}
-                    </Button>
-
-                    <Text fontSize="sm" mt={2} fontWeight="normal" color="white" fontFamily="body" opacity={0.8}>
-                        {isLoading ? (
-                            <HStack justify="center" mt={2}>
-                                <Spinner size="sm" color="white" />
-                                <Text>Transcribing audio...</Text>
-                            </HStack>
-                        ) : (
-                            transcript
-                        )}
-                    </Text>
-
-                    {/* Download Audio Button */}
-                    {audioBlobUrl && !isLoading && ( // Only show download if not loading
-                        <Button
-                            as="a"
-                            href={audioBlobUrl}
-                            download="recorded_audio.webm"
-                            leftIcon={<FaDownload />}
-                            variant="link"
-                            color="white"
-                            size="md"
-                            mt={4}
-                            _hover={{
-                                textDecoration: 'underline',
-                                color: "gray.300"
-                            }}
-                        >
-                            Download Audio
-                        </Button>
-                    )}
-
-                </Container>
-
-                {/* Display Fetched Notes (Transcriptions) */}
-                <Box mt={8} p={6} bg="white" borderRadius="lg" boxShadow="md" maxW="container.sm" width="100%" textAlign="left">
-                    <Heading size="md" mb={3} color="#2c3e50" fontFamily="heading" textAlign="center">Your Transcribed Notes</Heading>
-                    {notes.length === 0 ? (
-                        <Text color="gray.600" fontFamily="body" textAlign="center">No transcribed notes yet. Record something!</Text>
-                    ) : (
-                        <VStack spacing={4} align="stretch">
-                            {notes.map((note) => (
-                                <Box key={note.noteId} p={4} borderWidth="1px" borderRadius="md" borderColor="brand.200" bg="brand.50">
-                                    <Text fontSize="sm" color="gray.500">Note ID: {note.noteId}</Text>
-                                    <Text fontSize="md" fontWeight="medium" mt={1}>{note.noteContent}</Text>
-                                    <Text fontSize="xs" color="gray.400" mt={1}>Recorded: {new Date(note.timestamp).toLocaleString()}</Text>
-                                    {/* You can add more details or actions here */}
-                                </Box>
-                            ))}
-                        </VStack>
-                    )}
+            {/* Main Content Area - Responsive Dashboard Layout */}
+            <Flex flex="1" direction={{ base: 'column', md: 'row' }}> {/* Stacks vertically on mobile, horizontally on desktop */}
+                {/* Simulated Sidebar for Dashboard Links (Responsive) */}
+                <Box
+                    as="nav"
+                    w={{ base: 'full', md: '250px' }} // Full width on mobile, fixed on desktop
+                    bg="blue.700" // A slightly lighter blue for sidebar
+                    color="white"
+                    p={4}
+                    boxShadow="lg" // Add a shadow for depth
+                    minH={{ base: 'auto', md: 'calc(100vh - 64px)' }} // Adjust height for header on desktop
+                    position={{ base: 'relative', md: 'sticky' }} // Relative on mobile, sticky on desktop
+                    top={{ base: 'auto', md: '0' }} // Sticks to the top on desktop
+                    zIndex="1" // Ensure it's above other content if sticky
+                >
+                    <VStack spacing={6} align="stretch" mt={{ base: 2, md: 8 }}> {/* Spacing for navigation items */}
+                        {navItems.map((item) => (
+                            <Link
+                                key={item.label}
+                                href={item.href}
+                                _hover={{ textDecoration: 'none', bg: 'blue.600', color: 'white' }}
+                                borderRadius="md"
+                                p={3}
+                                transition="all 0.2s ease-in-out"
+                                display="flex"
+                                alignItems="center"
+                            >
+                                <Icon as={item.icon} mr={3} fontSize="xl" />
+                                <Text fontSize="md" fontWeight="medium">{item.label}</Text>
+                            </Link>
+                        ))}
+                    </VStack>
                 </Box>
 
-            </VStack>
+                {/* Main Content Area (Voice Recorder and Notes List) */}
+                <VStack
+                    flex="1" // Takes remaining space
+                    p={{ base: 4, md: 8 }}
+                    spacing={8}
+                    align="center"
+                    overflowY="auto" // Allow scrolling if content overflows
+                >
+                    {/* Main Recording Container - Lighter background, more rounded, prominent shadow */}
+                    <Container 
+                        maxW="container.sm" 
+                        textAlign="center" 
+                        p={{ base: 8, md: 12 }}
+                        bg="white"
+                        borderRadius="xl"
+                        boxShadow="xl"
+                        border="1px solid"
+                        borderColor="gray.200"
+                    >
+                        <Heading as="h1" size={{ base: "xl", md: "2xl" }} mb={4} color="blue.800" fontFamily="heading">
+                            Voice Notes
+                        </Heading>
+                        <Text fontSize={{ base: "md", md: "lg" }} mb={8} color="gray.600" fontWeight="normal" fontFamily="body">
+                            Record your thoughts, lectures, or study sessions. We'll transcribe them for you!
+                        </Text>
+
+                        <Button
+                            leftIcon={
+                                isRecording ? (
+                                    <Box as={FaStop} />
+                                ) : (
+                                    <Box as={FaMicrophone} animation={isRecording ? `${pulse} 1s infinite` : 'none'} />
+                                )
+                            }
+                            bg={isRecording ? "red.500" : "blue.500"}
+                            color="white"
+                            size="lg"
+                            height="50px"
+                            width={{ base: "full", md: "200px" }}
+                            borderRadius="full"
+                            boxShadow="lg"
+                            onClick={isRecording ? stopRecording : startRecording}
+                            isLoading={isLoading}
+                            loadingText="Processing..."
+                            _hover={{
+                                transform: 'scale(1.05)',
+                                boxShadow: '2xl',
+                                bg: isRecording ? "red.600" : "blue.600"
+                            }}
+                            _active={{ transform: 'scale(0.95)' }}
+                            transition="all 0.2s ease-in-out"
+                            fontSize="lg"
+                            fontWeight="bold"
+                            isDisabled={isLoading}
+                        >
+                            {isRecording ? 'Stop Recording' : 'Start Recording'}
+                        </Button>
+
+                        <Text fontSize="md" mt={4} fontWeight="medium" color="gray.700" fontFamily="body">
+                            {isLoading ? (
+                                <HStack justify="center" mt={2}>
+                                    <Spinner size="sm" color="blue.500" />
+                                    <Text>Transcribing audio...</Text>
+                                </HStack>
+                            ) : (
+                                transcript
+                            )}
+                        </Text>
+
+                        {/* Download Audio Button */}
+                        {audioBlobUrl && !isLoading && (
+                            <Button
+                                as="a"
+                                href={audioBlobUrl}
+                                download="recorded_audio.webm"
+                                leftIcon={<FaDownload />}
+                                variant="link"
+                                color="blue.500"
+                                size="md"
+                                mt={4}
+                                _hover={{
+                                    textDecoration: 'underline',
+                                    color: "blue.600"
+                                }}
+                                transition="all 0.2s ease-in-out"
+                            >
+                                Download Audio
+                            </Button>
+                        )}
+                    </Container>
+
+                    {/* Display Fetched Notes (Transcriptions) - Now scrollable and with distinct cards */}
+                    <Box 
+                        mt={8} 
+                        p={6} 
+                        bg="white" 
+                        borderRadius="xl" 
+                        boxShadow="none" // Removed shadow from the main notes container
+                        maxW="container.sm" 
+                        width="100%" 
+                        textAlign="left"
+                        maxH="400px" // Max height for scrollability
+                        overflowY="auto" // Enable vertical scrolling
+                        border="1px solid" 
+                        borderColor="gray.200" 
+                    >
+                        <Heading size="md" mb={6} color="blue.800" fontFamily="heading" textAlign="center">Your Transcribed Notes</Heading>
+                        {notes.length === 0 ? (
+                            <Text color="gray.500" fontFamily="body" textAlign="center" p={4}>No transcribed notes yet. Record something!</Text>
+                        ) : (
+                            <VStack spacing={4} align="stretch">
+                                {notes.map((note) => (
+                                    <Box 
+                                        key={note.noteId} 
+                                        p={4} 
+                                        borderWidth="1px" 
+                                        borderRadius="lg" 
+                                        borderColor="gray.100" 
+                                        bg="gray.50" 
+                                        boxShadow="none" // Removed shadow from individual note cards
+                                        _hover={{ boxShadow: "none", transform: "translateY(-2px)" }} // Removed hover shadow
+                                        transition="all 0.2s ease-in-out" 
+                                    >
+                                        <Text fontSize="xs" color="gray.500" fontWeight="semibold">Note ID: {note.noteId}</Text>
+                                        <Text fontSize="md" fontWeight="medium" mt={1} color="gray.800">{note.noteContent}</Text>
+                                        <Text fontSize="xs" color="gray.400" mt={1}>Recorded: {new Date(note.timestamp).toLocaleString()}</Text>
+                                    </Box>
+                                ))}
+                            </VStack>
+                        )}
+                    </Box>
+                </VStack>
+            </Flex>
 
             {/* Footer - Dark Blue matching header */}
-            <Box as="footer" w="100%" p={4} bg="#2c3e50" borderTop="1px" borderColor="#34495e" mt="auto" boxShadow="sm">
+            <Box as="footer" w="100%" p={4} bg="blue.800" borderTop="1px" borderColor="blue.900" mt="auto" boxShadow="sm">
                 <Flex align="center" maxW="container.xl" mx="auto" direction={{ base: 'column', md: 'row' }}>
-                    <Text color="white" fontSize="sm" fontFamily="body">&copy; {new Date().getFullYear()} StudyMate. All rights reserved.</Text>
+                    <Text color="whiteAlpha.800" fontSize="sm" fontFamily="body">&copy; {new Date().getFullYear()} StudyMate. All rights reserved.</Text>
                     <Spacer />
                     <HStack spacing={4} mt={{ base: 4, md: 0 }}>
                         <IconButton
                             as="a"
-                            href="https://github.com"
+                            href="https://github.com/EhteshaA/studymate-frontend"
                             target="_blank"
                             aria-label="GitHub"
                             icon={<FaGithub />}
                             variant="ghost"
-                            color="white"
-                            _hover={{ color: '#3498db', bg: 'rgba(255,255,255,0.1)' }}
+                            color="whiteAlpha.800"
+                            _hover={{ color: 'blue.300', bg: 'whiteAlpha.100' }}
+                            transition="all 0.2s ease-in-out"
                         />
                         <IconButton
                             as="a"
@@ -360,8 +477,9 @@ function App() {
                             aria-label="Twitter"
                             icon={<FaTwitter />}
                             variant="ghost"
-                            color="white"
-                            _hover={{ color: '#3498db', bg: 'rgba(255,255,255,0.1)' }}
+                            color="whiteAlpha.800"
+                            _hover={{ color: 'blue.300', bg: 'whiteAlpha.100' }}
+                            transition="all 0.2s ease-in-out"
                         />
                         <IconButton
                             as="a"
@@ -370,8 +488,9 @@ function App() {
                             aria-label="LinkedIn"
                             icon={<FaLinkedin />}
                             variant="ghost"
-                            color="white"
-                            _hover={{ color: '#3498db', bg: 'rgba(255,255,255,0.1)' }}
+                            color="whiteAlpha.800"
+                            _hover={{ color: 'blue.300', bg: 'whiteAlpha.100' }}
+                            transition="all 0.2s ease-in-out"
                         />
                     </HStack>
                 </Flex>
